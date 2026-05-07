@@ -1,0 +1,59 @@
+<div class="container" style="align-items: flex-start; padding: 2rem;">
+
+  <div style="width: 100%; max-width: 680px; margin: 0 auto;">
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h2 style="margin: 0;">My notes</h2>
+      <button (click)="authService.logout()" style="width: auto; padding: 8px 16px;">
+        Logout
+      </button>
+    </div>
+
+    <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+    <!-- Create note form -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <h3 style="margin-bottom: 1rem; font-size: 1rem;">New note</h3>
+      <div class="field">
+        <input
+          type="text"
+          [(ngModel)]="title"
+          placeholder="Title"
+        />
+      </div>
+      <div class="field">
+        <textarea
+          [(ngModel)]="content"
+          placeholder="Write your note..."
+          rows="4"
+          style="width:100%; padding: 10px 12px; border: 1px solid #ddd;
+                 border-radius: 8px; font-size: 1rem; resize: vertical;"
+        ></textarea>
+      </div>
+      <button (click)="createNote()" [disabled]="isLoading">
+        {{ isLoading ? 'Saving...' : 'Save note' }}
+      </button>
+    </div>
+
+    <!-- Notes list -->
+    <div *ngIf="notes.length === 0" style="text-align:center; color:#999; padding: 2rem 0;">
+      No notes yet. Write your first one above.
+    </div>
+
+    <div *ngFor="let note of notes" class="card" style="margin-bottom: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h3 style="margin: 0 0 0.5rem; font-size: 1rem;">{{ note.title }}</h3>
+          <p style="margin: 0 0 0.5rem; color: #666; font-size: 0.95rem;">{{ note.content }}</p>
+          <small style="color: #aaa;">{{ note.created_at | date:'medium' }}</small>
+        </div>
+        <button
+          (click)="deleteNote(note.id)"
+          style="width: auto; padding: 6px 12px; background: #e53935; margin-left: 1rem; flex-shrink: 0;">
+          Delete
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>

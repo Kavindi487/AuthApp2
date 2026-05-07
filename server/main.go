@@ -2,6 +2,7 @@ package main
 
 import (
     "server/handlers"
+    "server/middleware"
     "server/models"
     "server/repository"
     "server/services"
@@ -19,41 +20,38 @@ import (
 )
 
 func main() {
-    // --- Connect MySQL ---
+    // MySQL
     dsn := "root:123456789@tcp(127.0.0.1:3307)/auth_db?parseTime=true"
     db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
     if err != nil {
         log.Fatal("Failed to connect to MySQL:", err)
     }
     fmt.Println("MySQL connected!")
-    db.AutoMigrate(&models.User{})
+    db.AutoMigrate(&models.User{}, &models.Note{})
 
-    // --- Connect MongoDB ---
+    // MongoDB
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
-
     mongoClient, err := mongo.Connect(options.Client().ApplyURI("mongodb://localhost:27017"))
     if err != nil {
-        log.Fatal("Failed to connect to MongoDB:", err)
+        log.Fatal("MongoDB connection failed:", err)
     }
-
-    // Ping MongoDB to confirm connection
     err = mongoClient.Ping(ctx, nil)
     if err != nil {
         log.Fatal("MongoDB ping failed:", err)
     }
     fmt.Println("MongoDB connected!")
-
-    // Get the collection (like a table in SQL)
     logCollection := mongoClient.Database("auth_db").Collection("login_logs")
 
-    // --- Wire up layers ---
-    userRepo := repository.NewUserRepository(db)
-    logRepo := repository.NewLogRepository(logCollection)
+    // Wire layers
+    userRepo    := repository.NewUserRepository(db)
+    logRepo     := repository.NewLogRepository(logCollection)
+    noteRepo    := repository.NewNoteRepository(db)
     authService := services.NewAuthService(userRepo, logRepo)
+    noteService := services.NewNoteService(noteRepo)
     authHandler := handlers.NewAuthHandler(authService)
+    noteHandler := handlers.NewNoteHandler(noteService)
 
-    // --- Setup routes ---
     r := gin.Default()
 
     r.Use(cors.New(cors.Config{
@@ -66,8 +64,18 @@ func main() {
 
     api := r.Group("/api")
     {
+        // Public routes
         api.POST("/register", authHandler.Register)
-        api.POST("/login", authHandler.Login)
+        api.POST("/login",    authHandler.Login)
+
+        // Protected routes — JWT middleware runs first
+        protected := api.Group("/")
+        protected.Use(middleware.JWTMiddleware())
+        {
+            protected.POST("/notes",       noteHandler.CreateNote)
+            protected.GET("/notes",        noteHandler.GetMyNotes)
+            protected.DELETE("/notes/:id", noteHandler.DeleteNote)
+        }
     }
 
     fmt.Println("Server running on http://localhost:8080")
